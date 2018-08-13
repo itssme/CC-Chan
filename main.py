@@ -3,8 +3,20 @@ import asyncio
 from random import randint
 from threading import Thread
 from time import sleep
+from random import randrange
 import requests
 import json
+
+
+API = False
+api = None
+try:
+    import api
+    from api import Posts, Post
+    API = False
+    api = api.Api()
+except ImportError:
+    print("PR0 API NOT AVAILABLE")
 
 client = discord.Client()
 
@@ -37,6 +49,34 @@ def get_word(word):
     return word_definition['word'], word_definition['definition'], word_definition['example']
 
 
+def parse_pr0_command(msg):
+    global api
+
+    flags = api.calculate_flag(
+        sfw=True if not "no-sfw" in msg.content else False,
+        nsfw=True if "nsfw" in msg.content else False,
+        nsfl=True if "nsfl" in msg.content else False,
+        nsfp=True if "nsfp" in msg.content else False
+    )
+
+    tags = ""
+    if '"' in msg.content:
+        tags = msg.content.split('"')[-2]
+    else:
+        tags = msg.content.split(' ')[-1]
+
+    max = int(json.loads(api.get_newest_image(flags))["id"])
+
+    all_posts = Posts()
+    for posts in api.get_items_by_tag_iterator(tags=tags, flag=flags):
+        all_posts.extend(posts)
+        if randrange(0, 100) > 90:
+            break
+
+    send_post = all_posts[randrange(0, len(all_posts))]
+    return "https://img.pr0gramm.com/" + str(send_post["image"])
+
+
 @client.event
 async def on_message(message):
     print(Colors.OKBLUE + "[!] got a message: " + message.content + Colors.ENDC)
@@ -45,8 +85,8 @@ async def on_message(message):
         await client.sendmessage(message.channel, "no help for you")
     elif len(message.content.split(" ")) != 1 and message.content.startswith("!word"):
         words = message.content.split(" ")[1:]
-        words = "".join(word for word in words)
-        words.replace(" ", "+")
+        words = "".join(word + "+" for word in words)
+        words = words[0:-1]
         word, definition, example = get_word(words)
         send_message = 'Word: ' + word + '\nDefinition:\n"""\n' + definition + '\n"""\nExample:\n' + example
         await client.send_message(message.channel, send_message)
@@ -54,6 +94,14 @@ async def on_message(message):
     elif message.content.startswith("!word"):
         word, definition, example = get_random_word()
         send_message = 'Word: ' + word + '\nDefinition:\n"""\n' + definition + '\n"""\nExample:\n' + example
+        await client.send_message(message.channel, send_message)
+    elif message.content.startswith("!pr0"):
+        await client.send_message(message.channel, parse_pr0_command(message))
+    elif message.content.startswith("!syntax"):
+        send_message = "Syntax for command '!pr0':\n" \
+                       + """command ::= "!pr0" "no-sfw"? "nsfw"? "nsfl"? "nsfp"? (tag | tags)
+                            tag ::= ([A-Z] | [a-z] | [0-9])*
+                            tags ::= '"' (tag " ")+  '"'"""
         await client.send_message(message.channel, send_message)
 
     print(Colors.OKBLUE + "[!] sent message without errors" + Colors.ENDC)
