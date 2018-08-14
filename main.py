@@ -19,6 +19,7 @@ except ImportError:
     print("PR0 API NOT AVAILABLE")
 
 client = discord.Client()
+auto_channel = None
 
 
 class Colors:
@@ -109,10 +110,40 @@ async def on_message(message):
 
 @client.event
 async def on_ready():
+    global auto_channel
+
     print('Logged in as')
     print(client.user.name)
     print(client.user.id)
     print('------')
+
+    for server in client.servers:
+        for channel in server.channels:
+            if channel.name == "bot-autopost":
+                print("[!] found autopost channel")
+                auto_channel = channel
+                break
+
+    while True:
+        all_posts = Posts()
+        for post in api.get_items_by_tag_iterator(tags="meme"):
+            all_posts.extend(post)
+            if len(all_posts) > 500:
+                break
+
+        # eliminate bad posts
+        new_posts = Posts()
+        for post in all_posts:
+            if post["up"] - post["down"] > 30:
+                new_posts.append(post)
+
+        print("[!] len before elimination: " + str(len(all_posts)))
+        all_posts = new_posts
+        print("[!] len after elimination: " + str(len(all_posts)))
+
+        post = all_posts[randrange(0, len(all_posts))]
+        await client.send_message(auto_channel, "https://img.pr0gramm.com/" + post["image"])
+        await asyncio.sleep(60*60)
 
 
 def main():
