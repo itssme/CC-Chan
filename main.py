@@ -4,6 +4,7 @@ from random import randint
 from threading import Thread
 from time import sleep
 from random import randrange
+from datetime import datetime
 import requests
 import json
 
@@ -60,6 +61,8 @@ def parse_pr0_command(msg):
         nsfp=True if "nsfp" in msg.content else False
     )
 
+    print("FLAG: " + str(flags))
+
     tags = ""
     if '"' in msg.content:
         tags = msg.content.split('"')[-2]
@@ -80,7 +83,7 @@ def parse_pr0_command(msg):
 
 @client.event
 async def on_message(message):
-    print(Colors.OKBLUE + "[!] got a message: " + message.content + Colors.ENDC)
+    print(Colors.OKGREEN + "[!] got a message: " + message.content + Colors.ENDC)
 
     if message.content.startswith("!help"):
         await client.sendmessage(message.channel, "no help for you")
@@ -105,7 +108,7 @@ async def on_message(message):
                             tags ::= '"' (tag " ")+  '"'"""
         await client.send_message(message.channel, send_message)
 
-    print(Colors.OKBLUE + "[!] sent message without errors" + Colors.ENDC)
+    print(Colors.OKGREEN + "[!] sent message without errors" + Colors.ENDC)
 
 
 @client.event
@@ -131,6 +134,31 @@ async def on_ready():
             if len(all_posts) > 500:
                 break
 
+        for post in api.get_items_by_tag_iterator(tags="python"):
+            all_posts.extend(post)
+            if len(all_posts) > 500:
+                break
+
+        for post in api.get_items_by_tag_iterator(tags="java"):
+            all_posts.extend(post)
+            if len(all_posts) > 500:
+                break
+
+        for post in api.get_items_by_tag_iterator(tags="comic"):
+            all_posts.extend(post)
+            if len(all_posts) > 500:
+                break
+
+        for post in api.get_items_by_tag_iterator(tags="programming"):
+            all_posts.extend(post)
+            if len(all_posts) > 500:
+                break
+
+        for post in api.get_items_by_tag_iterator(tags="diagnose: frau"):
+            all_posts.extend(post)
+            if len(all_posts) > 500:
+                break
+
         # eliminate bad posts
         new_posts = Posts()
         for post in all_posts:
@@ -143,6 +171,8 @@ async def on_ready():
 
         post = all_posts[randrange(0, len(all_posts))]
         await client.send_message(auto_channel, "https://img.pr0gramm.com/" + post["image"])
+        while 23 == datetime.now().hour or datetime.now().hour < 7:
+            await asyncio.sleep(60*60)
         await asyncio.sleep(60*60)
 
 
