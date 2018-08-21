@@ -22,6 +22,11 @@ except ImportError:
 client = discord.Client()
 auto_channel = None
 
+# blacklist of tags that should not be included in auto-post
+BLACKLIST = ["hitler", "nazi", "propaganda", "fake news", "nazinostalgie", "schlauchkefer", '"sfw"']
+# note that tags like 'gore' are not included because they are filtered out
+# by the flag. Auto-post only uses sfw (safe for work)
+
 
 class Colors:
     HEADER = '\033[95m'
@@ -114,6 +119,7 @@ async def on_message(message):
 @client.event
 async def on_ready():
     global auto_channel
+    global BLACKLIST
 
     print('Logged in as')
     print(client.user.name)
@@ -128,52 +134,76 @@ async def on_ready():
                 break
 
     while True:
-        all_posts = Posts()
-        for post in api.get_items_by_tag_iterator(tags="meme"):
-            all_posts.extend(post)
-            if len(all_posts) > 500:
-                break
+        if datetime.now().minute == 0:
+            all_posts = Posts()
+            for post in api.get_items_by_tag_iterator(tags="meme"):
+                all_posts.extend(post)
+                if len(all_posts) > 500:
+                    break
 
-        for post in api.get_items_by_tag_iterator(tags="python"):
-            all_posts.extend(post)
-            if len(all_posts) > 500:
-                break
+            for post in api.get_items_by_tag_iterator(tags="python"):
+                all_posts.extend(post)
+                if len(all_posts) > 500:
+                    break
 
-        for post in api.get_items_by_tag_iterator(tags="java"):
-            all_posts.extend(post)
-            if len(all_posts) > 500:
-                break
+            for post in api.get_items_by_tag_iterator(tags="java"):
+                all_posts.extend(post)
+                if len(all_posts) > 500:
+                    break
 
-        for post in api.get_items_by_tag_iterator(tags="comic"):
-            all_posts.extend(post)
-            if len(all_posts) > 500:
-                break
+            for post in api.get_items_by_tag_iterator(tags="comic"):
+                all_posts.extend(post)
+                if len(all_posts) > 500:
+                    break
 
-        for post in api.get_items_by_tag_iterator(tags="programming"):
-            all_posts.extend(post)
-            if len(all_posts) > 500:
-                break
+            for post in api.get_items_by_tag_iterator(tags="programming"):
+                all_posts.extend(post)
+                if len(all_posts) > 500:
+                    break
 
-        for post in api.get_items_by_tag_iterator(tags="diagnose: frau"):
-            all_posts.extend(post)
-            if len(all_posts) > 500:
-                break
+            for post in api.get_items_by_tag_iterator(tags="/r/ProgrammerHumor"):
+                all_posts.extend(post)
+                if len(all_posts) > 500:
+                    break
 
-        # eliminate bad posts
-        new_posts = Posts()
-        for post in all_posts:
-            if post["up"] - post["down"] > 30:
-                new_posts.append(post)
+            for post in api.get_items_by_tag_iterator(tags="greentext"):
+                all_posts.extend(post)
+                if len(all_posts) > 500:
+                    break
 
-        print("[!] len before elimination: " + str(len(all_posts)))
-        all_posts = new_posts
-        print("[!] len after elimination: " + str(len(all_posts)))
+            # eliminate bad posts
+            new_posts = Posts()
+            for post in all_posts:
+                if post["up"] - post["down"] > 10:
+                    new_posts.append(post)
 
-        post = all_posts[randrange(0, len(all_posts))]
-        await client.send_message(auto_channel, "https://img.pr0gramm.com/" + post["image"])
+            print("[!] len before elimination: " + str(len(all_posts)))
+            all_posts = new_posts
+            print("[!] len after elimination: " + str(len(all_posts)))
+
+            blacklisted = True
+
+            tags = ""
+            while blacklisted:
+                await asyncio.sleep(1)
+                blacklisted = False
+                post = all_posts[randrange(0, len(all_posts))]
+                tags = json.loads(api.get_item_info(post["id"]))["tags"]
+
+                for tag in tags:
+                    splitted_tag =  tag["tag"].lower().split(" ")
+                    for tag_word in splitted_tag:
+                        if tag_word in BLACKLIST:
+                            blacklisted = True
+                            print("POST IS BLACKLISTED BECAUSE OF " + tag_word)
+
+            print("POSTING: ")
+            print(post)
+            print("with tags: " + str(tags))
+            await client.send_message(auto_channel, "https://img.pr0gramm.com/" + post["image"])
         while 23 == datetime.now().hour or datetime.now().hour < 7:
-            await asyncio.sleep(60*60)
-        await asyncio.sleep(60*60)
+            await asyncio.sleep(50)
+        await asyncio.sleep(50)
 
 
 def main():
