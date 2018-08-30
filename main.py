@@ -2,7 +2,6 @@ import discord
 import asyncio
 from random import randint
 from threading import Thread
-from time import sleep
 from random import randrange
 from datetime import datetime
 import requests
@@ -22,10 +21,18 @@ except ImportError:
 client = discord.Client()
 auto_channel = None
 
+# change to true if you want autoposting enabled
+AUTOPOSTING = False
+AUTOPOSTTAGS = ["meme", "python", "java", "comic", "programming", "/r/ProgrammerHumor", "greentext"]
+
 # blacklist of tags that should not be included in auto-post
-BLACKLIST = ["hitler", "nazi", "propaganda", "fake news", "nazinostalgie", "schlauchkefer", '"sfw"']
+BLACKLIST = ["hitler", "nazi", "propaganda", "fake news", "nazinostalgie", "schlauchkefer", '"sfw"', "stratham", "earthporn"]
 # note that tags like 'gore' are not included because they are filtered out
 # by the flag. Auto-post only uses sfw (safe for work)
+
+GR_RUNNING = False
+GR_MESSAGE = None
+GRUPPENTHERAPIE = []
 
 
 class Colors:
@@ -86,6 +93,43 @@ def parse_pr0_command(msg):
     return "https://img.pr0gramm.com/" + str(send_post["image"])
 
 
+async def gruppentherapie(message):
+    global GR_RUNNING
+    global GR_MESSAGE  # currently not used
+    global GRUPPENTHERAPIE
+
+    parsed_msg = message.content.split(" ")
+
+    if len(parsed_msg) == 1:
+        if GR_RUNNING:
+            for i in range(0, len(GRUPPENTHERAPIE)*20):
+                rand_a = randrange(0, len(GRUPPENTHERAPIE))
+                rand_b = randrange(0, len(GRUPPENTHERAPIE))
+                GRUPPENTHERAPIE[rand_a], GRUPPENTHERAPIE[rand_b] = GRUPPENTHERAPIE[rand_b], GRUPPENTHERAPIE[rand_a]
+
+            GRUPPENTHERAPIE.insert(0, "Gruppentherapie!\n")
+            await client.send_message(message.channel, "".join(name + "\n" for name in GRUPPENTHERAPIE))
+            del GRUPPENTHERAPIE[0]
+    elif parsed_msg[1] == "start":
+        GRUPPENTHERAPIE.insert(0, "Gruppentherapie!\n")
+        GR_MESSAGE = await client.send_message(message.channel, "".join(name + "\n" for name in GRUPPENTHERAPIE))
+        del GRUPPENTHERAPIE[0]
+        GR_RUNNING = True
+    elif parsed_msg[1] == "add":
+        GRUPPENTHERAPIE.append("".join(name + " " for name in parsed_msg[2:])[:-1])
+        await client.send_message(message.channel, "Added " + GRUPPENTHERAPIE[-1])
+
+        if GR_RUNNING:
+            GRUPPENTHERAPIE.insert(0, "Gruppentherapie!\n")
+            GR_MESSAGE = await client.send_message(message.channel, "".join(name + "\n" for name in GRUPPENTHERAPIE))
+            del GRUPPENTHERAPIE[0]
+    elif parsed_msg[1] == "stop":
+        await client.send_message(message.channel, "ende der Gruppentherapie :(")
+        GR_RUNNING = False
+        GR_MESSAGE = None
+        GRUPPENTHERAPIE = []
+
+
 @client.event
 async def on_message(message):
     print(Colors.OKGREEN + "[!] got a message: " + message.content + Colors.ENDC)
@@ -112,6 +156,15 @@ async def on_message(message):
                             tag ::= ([A-Z] | [a-z] | [0-9])*
                             tags ::= '"' (tag " ")+  '"'"""
         await client.send_message(message.channel, send_message)
+    elif message.content.lower().startswith("!gruppentherapie") or message.content.lower().startswith("!gr"):
+        await gruppentherapie(message)
+    elif message.content.lower().startswith("!d"):
+        dice = int(message.content.split("d")[1])+1
+        number = 0
+        print("generating random number for: " + str(dice-1))
+        for i in range(0, randint(10, 1000)):
+            number = str(randrange(1, (dice*10)//10))
+        await client.send_message(message.channel, number)
 
     print(Colors.OKGREEN + "[!] sent message without errors" + Colors.ENDC)
 
@@ -120,11 +173,16 @@ async def on_message(message):
 async def on_ready():
     global auto_channel
     global BLACKLIST
+    global AUTOPOSTING
+    global AUTOPOSTTAGS
 
     print('Logged in as')
     print(client.user.name)
     print(client.user.id)
     print('------')
+
+    if not AUTOPOSTING:
+        return
 
     for server in client.servers:
         for channel in server.channels:
@@ -136,45 +194,17 @@ async def on_ready():
     while True:
         if datetime.now().minute == 0:
             all_posts = Posts()
-            for post in api.get_items_by_tag_iterator(tags="meme"):
-                all_posts.extend(post)
-                if len(all_posts) > 500:
-                    break
 
-            for post in api.get_items_by_tag_iterator(tags="python"):
-                all_posts.extend(post)
-                if len(all_posts) > 500:
-                    break
-
-            for post in api.get_items_by_tag_iterator(tags="java"):
-                all_posts.extend(post)
-                if len(all_posts) > 500:
-                    break
-
-            for post in api.get_items_by_tag_iterator(tags="comic"):
-                all_posts.extend(post)
-                if len(all_posts) > 500:
-                    break
-
-            for post in api.get_items_by_tag_iterator(tags="programming"):
-                all_posts.extend(post)
-                if len(all_posts) > 500:
-                    break
-
-            for post in api.get_items_by_tag_iterator(tags="/r/ProgrammerHumor"):
-                all_posts.extend(post)
-                if len(all_posts) > 500:
-                    break
-
-            for post in api.get_items_by_tag_iterator(tags="greentext"):
-                all_posts.extend(post)
-                if len(all_posts) > 500:
-                    break
+            for tag in AUTOPOSTTAGS:
+                for post in api.get_items_by_tag_iterator(tags=tag):
+                    all_posts.extend(post)
+                    if len(all_posts) > 500:
+                        break
 
             # eliminate bad posts
             new_posts = Posts()
             for post in all_posts:
-                if post["up"] - post["down"] > 10:
+                if post["up"] - post["down"] > 30:
                     new_posts.append(post)
 
             print("[!] len before elimination: " + str(len(all_posts)))
@@ -182,7 +212,6 @@ async def on_ready():
             print("[!] len after elimination: " + str(len(all_posts)))
 
             blacklisted = True
-
             tags = ""
             while blacklisted:
                 await asyncio.sleep(1)
@@ -191,7 +220,7 @@ async def on_ready():
                 tags = json.loads(api.get_item_info(post["id"]))["tags"]
 
                 for tag in tags:
-                    splitted_tag =  tag["tag"].lower().split(" ")
+                    splitted_tag = tag["tag"].lower().split(" ")
                     for tag_word in splitted_tag:
                         if tag_word in BLACKLIST:
                             blacklisted = True
