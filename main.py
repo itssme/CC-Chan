@@ -135,7 +135,7 @@ async def on_message(message):
     print(Colors.OKGREEN + "[!] got a message: " + message.content + Colors.ENDC)
 
     if message.content.startswith("!help"):
-        await client.sendmessage(message.channel, "no help for you")
+        await client.send_message(message.channel, "no help for you")
     elif len(message.content.split(" ")) != 1 and message.content.startswith("!word"):
         words = message.content.split(" ")[1:]
         words = "".join(word + "+" for word in words)
