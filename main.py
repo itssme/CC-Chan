@@ -37,6 +37,7 @@ GRUPPENTHERAPIE = []
 # put the bot token here
 TOKEN = 'bot-token'
 
+
 class Colors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -108,25 +109,24 @@ async def gruppentherapie(message):
                 rand_a = randrange(0, len(GRUPPENTHERAPIE))
                 rand_b = randrange(0, len(GRUPPENTHERAPIE))
                 GRUPPENTHERAPIE[rand_a], GRUPPENTHERAPIE[rand_b] = GRUPPENTHERAPIE[rand_b], GRUPPENTHERAPIE[rand_a]
-
             GRUPPENTHERAPIE.insert(0, "Gruppentherapie!\n")
-            await client.send_message(message.channel, "".join(name + "\n" for name in GRUPPENTHERAPIE))
+            await message.channel.send("".join(name + "\n" for name in GRUPPENTHERAPIE))
             del GRUPPENTHERAPIE[0]
     elif parsed_msg[1] == "start":
         GRUPPENTHERAPIE.insert(0, "Gruppentherapie!\n")
-        GR_MESSAGE = await client.send_message(message.channel, "".join(name + "\n" for name in GRUPPENTHERAPIE))
+        await message.channel.send("".join(name + "\n" for name in GRUPPENTHERAPIE))
         del GRUPPENTHERAPIE[0]
         GR_RUNNING = True
     elif parsed_msg[1] == "add":
         GRUPPENTHERAPIE.append("".join(name + " " for name in parsed_msg[2:])[:-1])
-        await client.send_message(message.channel, "Added " + GRUPPENTHERAPIE[-1])
+        await message.channel.send("Added " + GRUPPENTHERAPIE[-1])
 
         if GR_RUNNING:
             GRUPPENTHERAPIE.insert(0, "Gruppentherapie!\n")
-            GR_MESSAGE = await client.send_message(message.channel, "".join(name + "\n" for name in GRUPPENTHERAPIE))
+            GR_MESSAGE = await message.channel.send("".join(name + "\n" for name in GRUPPENTHERAPIE))
             del GRUPPENTHERAPIE[0]
     elif parsed_msg[1] == "stop":
-        await client.send_message(message.channel, "ende der Gruppentherapie :(")
+        await message.channel.send("ende der Gruppentherapie :(")
         GR_RUNNING = False
         GR_MESSAGE = None
         GRUPPENTHERAPIE = []
@@ -137,27 +137,27 @@ async def on_message(message):
     print(Colors.OKGREEN + "[!] got a message: " + message.content + Colors.ENDC)
 
     if message.content.startswith("!help"):
-        await client.send_message(message.channel, "no help for you")
+        await message.channel.send('no help for you')
     elif len(message.content.split(" ")) != 1 and message.content.startswith("!word"):
         words = message.content.split(" ")[1:]
         words = "".join(word + "+" for word in words)
         words = words[0:-1]
         word, definition, example = get_word(words)
         send_message = 'Word: ' + word + '\nDefinition:\n"""\n' + definition + '\n"""\nExample:\n' + example
-        await client.send_message(message.channel, send_message)
+        await message.channel.send(send_message)
 
     elif message.content.startswith("!word"):
         word, definition, example = get_random_word()
         send_message = 'Word: ' + word + '\nDefinition:\n"""\n' + definition + '\n"""\nExample:\n' + example
-        await client.send_message(message.channel, send_message)
+        await message.channel.send(send_message)
     elif message.content.startswith("!pr0"):
-        await client.send_message(message.channel, parse_pr0_command(message))
+        await message.channel.send(parse_pr0_command(message))
     elif message.content.startswith("!syntax"):
         send_message = "Syntax for command '!pr0':\n" \
                        + """command ::= "!pr0" "no-sfw"? "nsfw"? "nsfl"? "nsfp"? (tag | tags)
                             tag ::= ([A-Z] | [a-z] | [0-9])*
                             tags ::= '"' (tag " ")+  '"'"""
-        await client.send_message(message.channel, send_message)
+        await message.channel.send(send_message)
     elif message.content.lower().startswith("!gruppentherapie") or message.content.lower().startswith("!gr"):
         await gruppentherapie(message)
     elif message.content.lower().startswith("!d"):
@@ -166,7 +166,7 @@ async def on_message(message):
         print("generating random number for: " + str(dice-1))
         for i in range(0, randint(10, 1000)):
             number = str(randrange(1, (dice*10)//10))
-        await client.send_message(message.channel, number)
+        await message.channel.send(number)
 
     print(Colors.OKGREEN + "[!] sent message without errors" + Colors.ENDC)
 
@@ -186,12 +186,11 @@ async def on_ready():
     if not AUTOPOSTING:
         return
 
-    for server in client.servers:
-        for channel in server.channels:
-            if channel.name == "bot-autopost":
-                print("[!] found autopost channel")
-                auto_channel = channel
-                break
+    for channel in client.get_all_channels():
+        if channel.name == "bot-autopost":
+            print("[!] found autopost channel")
+            auto_channel = channel
+            break
 
     while True:
         if datetime.now().minute == 0:
@@ -215,6 +214,7 @@ async def on_ready():
 
             blacklisted = True
             tags = ""
+            post = []
             while blacklisted:
                 await asyncio.sleep(1)
                 blacklisted = False
@@ -231,27 +231,31 @@ async def on_ready():
             print("POSTING: ")
             print(post)
             print("with tags: " + str(tags))
-            await client.send_message(auto_channel, "https://img.pr0gramm.com/" + post["image"])
+            await auto_channel.send("https://img.pr0gramm.com/" + post["image"])
         while 23 == datetime.now().hour or datetime.now().hour < 7:
             await asyncio.sleep(50)
         await asyncio.sleep(50)
 
+
 async def start():
     await client.start(TOKEN) # use client.start instead of client.run
+
 
 def run_it_forever(loop):
     loop.run_forever()
 
+
 def init():
     global client
 
-    asyncio.get_child_watcher() # I still don't know if I need this method. It works without it.
+    asyncio.get_child_watcher()  # uh this function sound weird
 
     loop = asyncio.get_event_loop()
     loop.create_task(start())
 
     thread = threading.Thread(target=run_it_forever, args=(loop,))
     thread.start()
+
 
 if __name__ == '__main__':
     init()
