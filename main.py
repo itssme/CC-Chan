@@ -1,7 +1,7 @@
 import discord
 import asyncio
+import threading
 from random import randint
-from threading import Thread
 from random import randrange
 from datetime import datetime
 import requests
@@ -34,6 +34,8 @@ GR_RUNNING = False
 GR_MESSAGE = None
 GRUPPENTHERAPIE = []
 
+# put the bot token here
+TOKEN = 'bot-token'
 
 class Colors:
     HEADER = '\033[95m'
@@ -234,12 +236,22 @@ async def on_ready():
             await asyncio.sleep(50)
         await asyncio.sleep(50)
 
+async def start():
+    await client.start(TOKEN) # use client.start instead of client.run
 
-def main():
+def run_it_forever(loop):
+    loop.run_forever()
+
+def init():
     global client
 
-    thread_discord = Thread(target=client.run, args=('bot token',)).start()
+    asyncio.get_child_watcher() # I still don't know if I need this method. It works without it.
 
+    loop = asyncio.get_event_loop()
+    loop.create_task(start())
+
+    thread = threading.Thread(target=run_it_forever, args=(loop,))
+    thread.start()
 
 if __name__ == '__main__':
-    main()
+    init()
